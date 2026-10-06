@@ -239,7 +239,7 @@ contract and rejected). Regions are checked by the **validate step** (`ca-centra
 
 The prototype fixes the **contract and behaviour**: API shape, error model, workflow states,
 retry/idempotency semantics, and the lead-time metric. The pod makes it real, roughly in
-this order (full backlog in GitHub Issues):
+this order (full backlog: [docs/backlog.md](docs/backlog.md) and the repo's GitHub Issues, milestones M1–M4):
 
 1. **Foundations:** Postgres; authN (OIDC) + RBAC; client idempotency keys on `POST`; CI/CD.
 2. **Real provisioning:** durable orchestrator (Temporal / Step Functions) replacing
@@ -270,6 +270,8 @@ tests/                 34 behaviour tests (API, workflow, retry, recovery, CLI)
 docs/product-brief.md  user, problem, hypothesis, metrics, scope
 docs/capability-map.md capabilities tagged Prototype / Production MVP / Future
 docs/architecture.md   boundaries, states, retry semantics, production changes
+docs/backlog.md        production backlog (17 issues, M1–M4), sequencing and rationale
+scripts/create_issues.py  creates the GitHub milestones/labels/issues from docs/backlog.md
 docs/ai-log/           build guide I wrote to direct Claude, and the AI interaction log
 ```
 
