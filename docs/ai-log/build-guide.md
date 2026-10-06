@@ -15,6 +15,62 @@ IMPORTANT:
 
 
 ==================================================
+REVISION 1 — DECISIONS AFTER CLAUDE REVIEW (2026-10-06)
+==================================================
+
+I asked Claude to critique this guide before starting. I accepted the
+following changes. Where they conflict with the original text below,
+THIS SECTION WINS. Edits are also applied inline below.
+
+R1. Execution model: async.
+    POST /api/v1/tenants returns 202 Accepted + tenant_id. The workflow
+    runs in a background worker. The CLI polls GET and prints each step
+    as it completes. Reason: makes state visible, matches how real
+    provisioning APIs behave, ~15 extra lines.
+
+R2. Persistence: SQLite (stdlib sqlite3) behind the repository interface.
+    Reason: the product story is "resume after failure"; in-memory state
+    dies with the process. SQLite lets the demo survive an API restart.
+    Postgres remains a pod item.
+
+R3. Contract semantics, fixed up front:
+    - retry while RUNNING           -> 409 Conflict
+    - retry on READY                -> 409 Conflict (explicit, no-op)
+    - create with existing name     -> 409 Conflict
+    - tenant_model = siloed         -> 422, code "unsupported_tenant_model"
+    - injected failure              -> fails the FIRST attempt only, so a
+                                       plain retry succeeds (demo-only)
+
+R4. One step enum used everywhere (CLI --fail-step, API, states):
+    validate | provision_data | configure | deploy | verify
+    each mapped to its workflow state (VALIDATING ... VERIFYING).
+
+R5. Idempotency is two separate layers, both implemented:
+    a) Engine: skips steps already recorded SUCCEEDED (normal resume).
+    b) Adapters: safe to call twice on their own, keyed by tenant_id
+       (e.g. db-<tenant-id> reused). Covers a crash after the side
+       effect but before the state write.
+
+R6. Lead-time metric captured in the prototype: created_at, ready_at,
+    per-step started_at/finished_at. GET /api/v1/metrics returns median
+    lead time and success counts.
+
+R7. Phases 3 and 4 merged (workflow + failure injection tested together).
+    Phases 10–11 are interview prep, outside the timebox.
+
+R8. The backlog MUST exist as real GitHub Issues (with labels/milestones),
+    created from docs/backlog.md. Not optional.
+
+R9. Deprovision/compensation (DELETE) stays optional; do it only if the
+    core is done with time left. Be ready to answer "what if deploy never
+    succeeds?" either way.
+
+R10. Practical: Python 3.11+, requirements include httpx (CLI -> API);
+     use rich for terminal output so ✓/✗ render on Windows; README has
+     both PowerShell and bash setup commands.
+
+
+==================================================
 STEP 1 — MASTER CONTEXT FOR CLAUDE
 ==================================================
 
@@ -200,9 +256,9 @@ This demonstrates that the API anticipates future multi-tenant capability withou
 
 Keep persistence deliberately simple.
 
-Prefer an in-memory repository unless lightweight SQLite materially improves the demonstration without adding complexity.
+[REVISED — R2] Use SQLite (stdlib sqlite3) behind a small repository interface, so tenant state survives an API restart.
 
-The README must explicitly state this is a prototype choice and that production requires durable persistence.
+The README must explicitly state this is a prototype choice and that production requires a managed database (Postgres) and durable workflow history.
 
 ## Architecture
 
@@ -520,8 +576,10 @@ Requirements:
 6. Allow pooled tenancy.
 7. Reject or clearly mark siloed as unsupported by the prototype.
 8. Implement a small repository abstraction.
-9. Use in-memory persistence for the prototype unless there is a compelling reason otherwise.
-10. Return sensible HTTP status codes and structured errors.
+9. [REVISED — R2] Use SQLite persistence behind the repository interface.
+10. Return sensible HTTP status codes and structured errors (see R3).
+11. [R1] POST returns 202 Accepted with tenant_id.
+12. [R6] Include created_at, ready_at and per-step timestamps.
 
 Do NOT implement fake cloud provisioning yet.
 
@@ -594,9 +652,9 @@ The orchestration layer must:
 - retain error detail;
 - never mark a tenant READY unless every required step succeeds.
 
-Do not yet implement retry or failure injection.
+[REVISED — R7] Phases 3 and 4 are merged: implement failure injection in this phase too (see Phase 4 requirements). Do not yet implement retry.
 
-Add tests for the successful complete workflow.
+Add tests for the successful complete workflow and for the injected-failure cases listed in Phase 4.
 
 I want the design to remain simple enough to explain without framework magic.
 
@@ -1035,8 +1093,8 @@ Place the drafts somewhere suitable in the repository, for example docs/backlog.
 
 Also identify the first 5 issues you recommend actually creating first and explain why.
 
-IMPORTANT:
-If the assessment requires the backlog as actual GitHub Issues, manually create those GitHub Issues after Claude drafts them. A Markdown backlog alone may not satisfy that requirement.
+IMPORTANT [REVISED — R8]:
+The assessment requires the backlog as actual GitHub Issues. After drafting docs/backlog.md, create the issues in the repo with labels and milestones (M1–M4) via the gh CLI. A Markdown backlog alone does not satisfy the requirement.
 
 
 ==================================================
@@ -1215,7 +1273,7 @@ FINAL REMINDERS
 3. Do not squash the entire project into one commit.
 4. Make sure the repository is PUBLIC before submission if the assessment requires that.
 5. Make sure README commands actually work.
-6. Create actual GitHub Issues if the deliverable explicitly requires GitHub Issues.
+6. Create actual GitHub Issues — the deliverable requires them (R8).
 7. Be prepared to explain every important design choice.
 8. Do not claim simulated infrastructure is real infrastructure.
 9. Do not claim invented baseline metrics as real.
