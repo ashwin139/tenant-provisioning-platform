@@ -127,7 +127,8 @@ def summary(tenant: dict) -> None:
         console.print(f"Failed step: {tenant['failed_step']}")
         console.print(f"Error:       {tenant['error']}")
         if tenant["failed_step"] == "validate":
-            console.print("[dim]Next: fix the request and create the tenant again.[/dim]")
+            console.print("[dim]Next: retrying will fail the same way; submit a new request "
+                          "with corrected input (the name stays reserved by this request).[/dim]")
         else:
             console.print(f"[dim]Next: python cli.py retry {tenant['tenant_id']}[/dim]")
 

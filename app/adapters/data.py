@@ -27,6 +27,5 @@ class DataProvisioner:
 
         log.info("provision_data tenant=%s creating %s", tenant.name, db_id)
         self.cloud.simulate_latency()
-        self.cloud.databases[db_id] = {"tenant_id": tenant.tenant_id, "region": tenant.region}
-        self.cloud.create_calls["database"] += 1
+        self.cloud.put("databases", db_id, {"tenant_id": tenant.tenant_id, "region": tenant.region})
         return {"database_id": db_id, "created": True}

@@ -53,6 +53,19 @@ class WorkflowEngine:
         log.info("workflow READY tenant=%s lead_time=%.2fs", tenant.name, tenant.lead_time_seconds)
         return tenant
 
+    def recover_interrupted(self, tenant: Tenant) -> bool:
+        """Called at startup. A tenant that is neither READY nor FAILED was
+        mid-run when the process stopped; nothing will ever finish it. Mark it
+        FAILED at the step it was on so the normal retry path can resume it.
+        Re-running that step is safe because adapters are idempotent."""
+        if tenant.status in (TenantStatus.READY, TenantStatus.FAILED):
+            return False
+        record = next(s for s in tenant.steps if s.status is not StepStatus.SUCCEEDED)
+        self._mark_failed(
+            tenant, record, StepFailed("Interrupted: the API stopped before this step finished")
+        )
+        return True
+
     # ---- transitions ----------------------------------------------------------
 
     def _mark_running(self, tenant: Tenant, record: StepRecord, state: TenantStatus) -> None:

@@ -64,6 +64,10 @@ class TenantService:
         """Executed in the background after the API has answered 202 (create or retry)."""
         return self.engine.run(tenant_id)
 
+    def recover_interrupted_runs(self) -> int:
+        """Startup reconciliation: make orphaned in-flight tenants retryable."""
+        return sum(self.engine.recover_interrupted(t) for t in self.repo.list())
+
     def metrics(self) -> dict:
         tenants = self.repo.list()
         lead_times = [t.lead_time_seconds for t in tenants if t.lead_time_seconds is not None]

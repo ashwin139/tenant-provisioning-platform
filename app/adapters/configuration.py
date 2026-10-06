@@ -28,5 +28,5 @@ class TenantConfigurator:
         log.info("configure tenant=%s plan=%s", tenant.name, tenant.plan.value)
         self.cloud.simulate_latency()
         config = {"plan": tenant.plan.value, **PLAN_LIMITS[tenant.plan]}
-        self.cloud.configs[tenant.tenant_id] = config  # upsert
+        self.cloud.put("configs", tenant.tenant_id, config)  # upsert
         return config

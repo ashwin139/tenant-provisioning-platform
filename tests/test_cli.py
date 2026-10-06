@@ -64,6 +64,13 @@ def test_api_errors_are_readable(api):
     assert missing.exit_code == 1 and "tenant_not_found" in missing.output
 
 
+def test_validation_failure_advises_new_request(api):
+    r = runner.invoke(cli.app, ["create-tenant", "bad", "--region", "mars-1"])
+    assert r.exit_code == 1
+    assert "✗ Validate" in r.output
+    assert "new request" in r.output and "cli.py retry" not in r.output
+
+
 def test_api_down_is_reported(monkeypatch):
     import httpx
 

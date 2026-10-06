@@ -24,12 +24,19 @@ def create_app(db_path: str | None = None, step_delay_seconds: float | None = No
         version="0.1.0",
         description="Prototype self-service API for provisioning SaaS tenants.",
     )
-    repo = SqliteTenantRepository(db_path or os.getenv("TENANT_DB_PATH", "tenants.db"))
+    db_path = db_path or os.getenv("TENANT_DB_PATH", "tenants.db")
+    repo = SqliteTenantRepository(db_path)
     if step_delay_seconds is None:
         step_delay_seconds = float(os.getenv("SIM_STEP_DELAY_SECONDS", "0.6"))
-    cloud = FakeCloud(delay_seconds=step_delay_seconds)
+    # Simulated infrastructure, persisted beside the DB so it survives restarts.
+    cloud = FakeCloud(delay_seconds=step_delay_seconds, state_path=f"{db_path}.fakecloud.json")
     engine = WorkflowEngine(repo, build_adapters(cloud))
     service = TenantService(repo, engine)
+    recovered = service.recover_interrupted_runs()
+    if recovered:
+        logging.getLogger("tenant.workflow").warning(
+            "marked %d interrupted tenant(s) FAILED; they can be retried", recovered
+        )
     app.state.service = service
     app.state.cloud = cloud  # exposed for tests
 
@@ -55,6 +62,14 @@ def create_app(db_path: str | None = None, step_delay_seconds: float | None = No
                     ],
                 }
             },
+        )
+
+    @app.exception_handler(Exception)
+    async def _unexpected_error(_: Request, exc: Exception):
+        logging.getLogger("tenant.api").exception("unhandled error")
+        return JSONResponse(
+            status_code=500,
+            content={"error": {"code": "internal_error", "message": "Unexpected server error"}},
         )
 
     errors = {404: {"model": ErrorResponse}, 409: {"model": ErrorResponse}, 422: {"model": ErrorResponse}}

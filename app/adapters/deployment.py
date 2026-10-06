@@ -23,5 +23,5 @@ class Deployer:
         endpoint = f"https://{tenant.name}.app.example.com"
         log.info("deploy tenant=%s endpoint=%s", tenant.name, endpoint)
         self.cloud.simulate_latency()
-        self.cloud.deployments[tenant.tenant_id] = {"endpoint": endpoint, "pool": f"pool-{tenant.region}"}
+        self.cloud.put("deployments", tenant.tenant_id, {"endpoint": endpoint, "pool": f"pool-{tenant.region}"})
         return {"endpoint": endpoint}

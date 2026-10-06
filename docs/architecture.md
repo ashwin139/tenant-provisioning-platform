@@ -83,6 +83,10 @@ A tenant becomes READY only when all five steps are SUCCEEDED.
   2. *Adapter* — each adapter checks whether its effect already exists for this tenant
      (e.g. reuses `db-<tenant-id>`). This covers a crash after the side effect but before
      the state write, where the engine would legitimately re-run the step.
+- **Interrupted runs.** If the API stops mid-run, the tenant would stay `DEPLOYING` (etc.)
+  forever. On startup the service marks such tenants `FAILED` at the step they were on
+  ("Interrupted: ..."), so the normal retry path resumes them; re-running that step is safe
+  because adapters are idempotent. This assumes a single API process (see limitations).
 - **Retry is for transient failures.** A bad request (e.g. an unsupported region) fails
   validation again on retry; the fix is a new request with corrected input. Classifying
   failures as retryable / non-retryable is a backlog item.
@@ -102,7 +106,7 @@ executable classes with the production interface, so swapping them is a containe
 
 | Prototype | Production |
 |---|---|
-| FastAPI background task | Durable orchestrator (Temporal / Step Functions); workers separate from API |
+| FastAPI background task + startup reconciliation | Durable orchestrator (Temporal / Step Functions); workers separate from API |
 | SQLite | Postgres + workflow history in the orchestrator |
 | Simulated adapters | Terraform/Pulumi, Kubernetes/GitOps, secrets manager, real health probes |
 | Manual retry only | Automatic retry with backoff + timeouts; manual retry for exhausted cases |
