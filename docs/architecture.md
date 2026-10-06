@@ -53,7 +53,7 @@ stateDiagram-v2
   CONFIGURING --> FAILED
   DEPLOYING --> FAILED
   VERIFYING --> FAILED
-  FAILED --> DEPLOYING: retry resumes at the failed step (e.g. deploy)
+  FAILED --> REQUESTED: retry (re-queued, resumes at the failed step)
   READY --> [*]
 ```
 
@@ -72,7 +72,10 @@ A tenant becomes READY only when all five steps are SUCCEEDED.
 
 ## Retry and resume
 
-- `POST /tenants/{id}/retry` is accepted only from `FAILED` (409 otherwise: running or already READY).
+- `POST /tenants/{id}/retry` is accepted only from `FAILED` and returns `202`; the tenant is
+  re-queued (`REQUESTED`) and the workflow runs again in the background.
+  `409 invalid_tenant_state` if the tenant is running or already READY; `404` if unknown.
+  The FAILED → REQUESTED check-and-set is atomic, so two concurrent retries cannot both start a run.
 - The engine walks the steps in order and **skips any step already SUCCEEDED**.
 - The failed step is re-run; later steps run only after it succeeds.
 - **Two layers of idempotency:**
@@ -80,6 +83,11 @@ A tenant becomes READY only when all five steps are SUCCEEDED.
   2. *Adapter* — each adapter checks whether its effect already exists for this tenant
      (e.g. reuses `db-<tenant-id>`). This covers a crash after the side effect but before
      the state write, where the engine would legitimately re-run the step.
+- **Retry is for transient failures.** A bad request (e.g. an unsupported region) fails
+  validation again on retry; the fix is a new request with corrected input. Classifying
+  failures as retryable / non-retryable is a backlog item.
+- Lead time is measured `created_at → ready_at`, so it includes failure and retry time:
+  that is what the requester actually experienced.
 - Failure injection (`fail_step`, demo-only) fails the **first attempt** of the named step,
   so a plain retry succeeds.
 

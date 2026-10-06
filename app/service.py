@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from statistics import median
 
-from .errors import TenantNotFound, UnsupportedTenantModel
+from .errors import InvalidTenantState, TenantNotFound, UnsupportedTenantModel
 from .models import CreateTenantRequest, Tenant, TenantModel, TenantStatus
 from .repository import TenantRepository
 from .workflow import WorkflowEngine
@@ -39,8 +39,29 @@ class TenantService:
             raise TenantNotFound(f"Tenant '{tenant_id}' not found")
         return tenant
 
+    def retry(self, tenant_id: str) -> Tenant:
+        """Re-queue a FAILED tenant. The engine then resumes at the failed step.
+
+        Contract: only FAILED tenants can be retried. A running or READY tenant
+        returns 409, so retry is never a hidden "re-provision".
+        """
+        current = self.get(tenant_id)  # 404 if unknown
+
+        def requeue(t: Tenant) -> None:
+            t.status = TenantStatus.REQUESTED
+            t.current_step = None
+            t.failed_step = None
+            t.error = None
+
+        tenant = self.repo.update_if_status(tenant_id, TenantStatus.FAILED, requeue)
+        if tenant is None:
+            raise InvalidTenantState(
+                f"Tenant is {current.status.value}; only FAILED tenants can be retried"
+            )
+        return tenant
+
     def run_workflow(self, tenant_id: str) -> Tenant:
-        """Executed in the background after the API has answered 202."""
+        """Executed in the background after the API has answered 202 (create or retry)."""
         return self.engine.run(tenant_id)
 
     def metrics(self) -> dict:

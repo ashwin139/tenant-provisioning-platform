@@ -71,6 +71,13 @@ def create_app(db_path: str | None = None, step_delay_seconds: float | None = No
     def get_tenant(tenant_id: str) -> Tenant:
         return service.get(tenant_id)
 
+    @app.post("/api/v1/tenants/{tenant_id}/retry", status_code=202, response_model=Tenant, responses=errors)
+    def retry_tenant(tenant_id: str, background: BackgroundTasks) -> Tenant:
+        """Resume a FAILED tenant from its failed step. 409 if not FAILED."""
+        tenant = service.retry(tenant_id)
+        background.add_task(service.run_workflow, tenant.tenant_id)
+        return tenant
+
     @app.get("/api/v1/metrics")
     def metrics() -> dict:
         """Primary metric: median lead time (request accepted -> READY)."""

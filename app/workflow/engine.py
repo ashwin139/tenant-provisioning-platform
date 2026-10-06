@@ -4,6 +4,7 @@ Rules:
 - Every transition is persisted before the next step starts.
 - Any exception in a step marks the step and tenant FAILED (never left RUNNING).
 - A tenant becomes READY only after all steps have SUCCEEDED.
+- Steps already SUCCEEDED are skipped, so the same run() both starts and resumes.
 
 Production replacement point: this class is what Temporal / Step Functions
 replaces; the adapters and API contract stay the same.
@@ -32,6 +33,10 @@ class WorkflowEngine:
 
         for step_name, running_state in WORKFLOW:
             record = tenant.step(step_name)
+            if record.status is StepStatus.SUCCEEDED:
+                # Resume: completed work is never re-executed (idempotency layer 1).
+                log.info("step %s already SUCCEEDED, skipping tenant=%s", step_name.value, tenant.name)
+                continue
             self._mark_running(tenant, record, running_state)
             try:
                 self._inject_fault_if_requested(tenant, record)
