@@ -67,6 +67,8 @@ def call(method: str, path: str, **kwargs) -> dict:
 
 def step_detail(step: dict) -> str:
     out = step.get("output") or {}
+    if out.get("healthy"):
+        return "  [dim]healthy[/dim]"
     for key in ("database_id", "endpoint"):
         if key in out:
             return f"  [dim]{out[key]}[/dim]"
