@@ -1,9 +1,10 @@
 """FastAPI app: HTTP contract only. Business logic lives in TenantService."""
 from __future__ import annotations
 
+import logging
 import os
 
-from fastapi import FastAPI, Request
+from fastapi import BackgroundTasks, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
@@ -11,17 +12,26 @@ from .errors import DomainError
 from .models import CreateTenantRequest, ErrorResponse, Tenant
 from .repository import SqliteTenantRepository
 from .service import TenantService
+from .adapters import FakeCloud, build_adapters
+from .workflow import WorkflowEngine
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
 
-def create_app(db_path: str | None = None) -> FastAPI:
+def create_app(db_path: str | None = None, step_delay_seconds: float | None = None) -> FastAPI:
     app = FastAPI(
         title="Tenant Provisioning API",
         version="0.1.0",
         description="Prototype self-service API for provisioning SaaS tenants.",
     )
     repo = SqliteTenantRepository(db_path or os.getenv("TENANT_DB_PATH", "tenants.db"))
-    service = TenantService(repo)
+    if step_delay_seconds is None:
+        step_delay_seconds = float(os.getenv("SIM_STEP_DELAY_SECONDS", "0.6"))
+    cloud = FakeCloud(delay_seconds=step_delay_seconds)
+    engine = WorkflowEngine(repo, build_adapters(cloud))
+    service = TenantService(repo, engine)
     app.state.service = service
+    app.state.cloud = cloud  # exposed for tests
 
     # ---- errors: one structured shape for every failure -----------------------
     @app.exception_handler(DomainError)
@@ -51,13 +61,20 @@ def create_app(db_path: str | None = None) -> FastAPI:
 
     # ---- routes ---------------------------------------------------------------
     @app.post("/api/v1/tenants", status_code=202, response_model=Tenant, responses=errors)
-    def create_tenant(req: CreateTenantRequest) -> Tenant:
+    def create_tenant(req: CreateTenantRequest, background: BackgroundTasks) -> Tenant:
         """Accept a tenant request. Provisioning runs asynchronously; poll GET for status."""
-        return service.create(req)
+        tenant = service.create(req)
+        background.add_task(service.run_workflow, tenant.tenant_id)
+        return tenant
 
     @app.get("/api/v1/tenants/{tenant_id}", response_model=Tenant, responses=errors)
     def get_tenant(tenant_id: str) -> Tenant:
         return service.get(tenant_id)
+
+    @app.get("/api/v1/metrics")
+    def metrics() -> dict:
+        """Primary metric: median lead time (request accepted -> READY)."""
+        return service.metrics()
 
     @app.get("/healthz")
     def healthz() -> dict:

@@ -86,6 +86,10 @@ class CreateTenantRequest(BaseModel):
     region: str = Field(..., examples=["ca-central-1"])
     plan: Plan = Plan.STANDARD
     tenant_model: TenantModel = TenantModel.POOLED
+    fail_step: StepName | None = Field(
+        None,
+        description="DEMO/TEST ONLY: fail this step on its first attempt. Not a production capability.",
+    )
 
 
 # ---- Tenant (stored and returned) ---------------------------------------------
@@ -106,6 +110,7 @@ class Tenant(BaseModel):
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)
     ready_at: datetime | None = None
+    fail_step: StepName | None = None  # demo-only fault injection
 
     def step(self, name: StepName) -> StepRecord:
         return next(s for s in self.steps if s.name == name)

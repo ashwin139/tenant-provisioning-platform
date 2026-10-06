@@ -4,14 +4,18 @@ Route handlers call this; they hold no business logic themselves.
 """
 from __future__ import annotations
 
+from statistics import median
+
 from .errors import TenantNotFound, UnsupportedTenantModel
-from .models import CreateTenantRequest, Tenant, TenantModel
+from .models import CreateTenantRequest, Tenant, TenantModel, TenantStatus
 from .repository import TenantRepository
+from .workflow import WorkflowEngine
 
 
 class TenantService:
-    def __init__(self, repo: TenantRepository):
+    def __init__(self, repo: TenantRepository, engine: WorkflowEngine):
         self.repo = repo
+        self.engine = engine
 
     def create(self, req: CreateTenantRequest) -> Tenant:
         if req.tenant_model is TenantModel.SILOED:
@@ -24,6 +28,7 @@ class TenantService:
             region=req.region,
             plan=req.plan,
             tenant_model=req.tenant_model,
+            fail_step=req.fail_step,
         )
         self.repo.add(tenant)  # raises DuplicateTenantName
         return tenant
@@ -33,3 +38,21 @@ class TenantService:
         if tenant is None:
             raise TenantNotFound(f"Tenant '{tenant_id}' not found")
         return tenant
+
+    def run_workflow(self, tenant_id: str) -> Tenant:
+        """Executed in the background after the API has answered 202."""
+        return self.engine.run(tenant_id)
+
+    def metrics(self) -> dict:
+        tenants = self.repo.list()
+        lead_times = [t.lead_time_seconds for t in tenants if t.lead_time_seconds is not None]
+        by_status: dict[str, int] = {}
+        for t in tenants:
+            by_status[t.status.value] = by_status.get(t.status.value, 0) + 1
+        return {
+            "tenants_total": len(tenants),
+            "tenants_by_status": by_status,
+            "ready_total": by_status.get(TenantStatus.READY.value, 0),
+            "failed_total": by_status.get(TenantStatus.FAILED.value, 0),
+            "median_lead_time_seconds": round(median(lead_times), 3) if lead_times else None,
+        }
