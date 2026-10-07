@@ -11,6 +11,15 @@ application deployment or routing entry, and a health check before the customer 
 Today this is a platform-team ticket. A platform engineer runs scripts and console steps
 by hand, in order, and tells the requester when it is done.
 
+This problem is informed by my experience owning and building enterprise cloud platforms
+and developer-facing services across AWS, Kubernetes, GitOps, and distributed application
+environments. In previous platform-engineering roles, I have seen how standardizing
+deployment paths and removing manual delivery steps can materially improve developer
+experience and lead time, including reducing deployment time from two hours to under
+20 minutes in one environment. That experience shaped the product decision here: expose a
+complex multi-step platform workflow through a simple, observable, self-service contract
+rather than asking developers to understand the underlying infrastructure.
+
 ## Primary user
 
 **Application engineer on a product or onboarding team** who is asked to stand up a new
@@ -72,6 +81,12 @@ tenant `READY` (`ready_at`). Captured per tenant in the prototype; exposed via
 
 Why this one: it is the user-visible outcome, it moves only if the whole workflow works,
 and it maps directly to the business pain (customer waiting to go live).
+
+## Pilot success target
+
+Success means achieving **median tenant provisioning lead time under 1 hour for two pilot
+engineering teams within 8 weeks**, while requiring **no manual platform intervention on the
+majority of successful provisioning runs**.
 
 ## Secondary metrics
 
