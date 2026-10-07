@@ -56,7 +56,6 @@ R6. Lead-time metric captured in the prototype: created_at, ready_at,
     lead time and success counts.
 
 R7. Phases 3 and 4 merged (workflow + failure injection tested together).
-    Phases 10–11 are interview prep, outside the timebox.
 
 R8. The backlog MUST exist as real GitHub Issues (with labels/milestones),
     created from docs/backlog.md. Not optional.
@@ -446,7 +445,7 @@ For each phase:
 
 Wait for my next phase instruction before expanding scope.
 
-A successful prototype must remain understandable enough that I can personally explain every important design decision during an interview.
+A successful prototype must remain understandable enough that I can personally explain every important design decision.
 
 
 ==================================================
@@ -531,7 +530,7 @@ Include a Mermaid architecture diagram.
 
 Keep the solution defensible and pragmatic for a 2–4 hour assessment.
 
-After creating the documents, summarize the top five product/architecture decisions that I should be prepared to defend in an interview.
+After creating the documents, summarize the top five product/architecture decisions that I should be prepared to defend.
 
 Do not proceed to implementation.
 
@@ -1095,88 +1094,6 @@ Also identify the first 5 issues you recommend actually creating first and expla
 
 IMPORTANT [REVISED — R8]:
 The assessment requires the backlog as actual GitHub Issues. After drafting docs/backlog.md, create the issues in the repo with labels and milestones (M1–M4) via the gh CLI. A Markdown backlog alone does not satisfy the requirement.
-
-
-==================================================
-STEP 11 — PHASE 10: FINAL ASSESSMENT REVIEW
-==================================================
-
-Act as the hiring panel for a senior Platform Product Engineer.
-
-Review the completed repository against these assessment dimensions:
-
-1. Product judgment
-2. Clear user/problem
-3. Adoption rationale
-4. Capability design
-5. API contract
-6. Workflow quality
-7. Failure handling
-8. Idempotency/recovery
-9. Prototype scope
-10. Developer experience
-11. Handoff thinking
-12. Production backlog
-13. Metrics
-14. Technical credibility
-15. README/setup quality
-
-Be critical.
-
-For each dimension give:
-
-- Strong
-- Adequate
-- Weak
-
-and briefly explain why.
-
-Then identify the FIVE highest-value improvements that can realistically be completed within 30 minutes.
-
-Do not recommend:
-- React
-- Kubernetes
-- Terraform
-- AWS deployment
-- Temporal
-- large-scale rewrites
-
-unless an existing implementation is fundamentally broken.
-
-Also identify anything in the repository that I may struggle to explain in an interview because it appears unnecessarily complicated or AI-generated.
-
-Finally, give me ten likely interview questions about my design, with concise points I should understand to answer them myself.
-
-Do not modify code until after completing the review.
-
-
-==================================================
-STEP 12 — PHASE 11: 5-MINUTE DEMO PREPARATION
-==================================================
-
-Help me prepare a 5-minute live demonstration of this prototype.
-
-The demo should tell a PRODUCT story rather than becoming a code walkthrough.
-
-Structure it around:
-
-1. User/problem — ~30 seconds
-2. Product/API concept — ~30 seconds
-3. Happy-path tenant provisioning — ~60 seconds
-4. Intentional mid-workflow failure — ~60 seconds
-5. Retry/resume/idempotency — ~60 seconds
-6. Prototype versus production-pod boundary — ~45 seconds
-7. Metric and expected outcome — ~30 seconds
-
-Give me:
-
-- exact commands to run;
-- what I should say while each command runs;
-- expected outputs;
-- backup steps if a command fails;
-- 5 likely evaluator questions immediately after the demo.
-
-Do not invent functionality that is not actually implemented in the repository.
 
 
 ==================================================
